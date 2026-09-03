@@ -1,0 +1,102 @@
+{
+  "entity": {
+    "sensor": {
+      "operating_hours": {
+        "default": "mdi:clock-outline"
+      }
+    },
+    "binary_sensor": {
+      "boost_active": {
+        "default": "mdi:fan-plus",
+        "state": {
+          "on": "mdi:fan-plus",
+          "off": "mdi:fan"
+        }
+      },
+      "fire_alarm": {
+        "default": "mdi:fire-alert",
+        "state": {
+          "on": "mdi:fire-alert",
+          "off": "mdi:fire-off"
+        }
+      },
+      "bypass_active": {
+        "default": "mdi:valve",
+        "state": {
+          "on": "mdi:valve-open",
+          "off": "mdi:valve-closed"
+        }
+      },
+      "defrost_active": {
+        "default": "mdi:snowflake-melt",
+        "state": {
+          "on": "mdi:snowflake-melt",
+          "off": "mdi:snowflake-off"
+        }
+      },
+      "outdoor_sensor_error": {
+        "default": "mdi:thermometer-alert"
+      },
+      "eeprom_error": {
+        "default": "mdi:memory"
+      },
+      "return_sensor_error": {
+        "default": "mdi:thermometer-alert"
+      },
+      "exhaust_sensor_error": {
+        "default": "mdi:thermometer-alert"
+      },
+      "filter_alarm": {
+        "default": "mdi:air-filter"
+      },
+      "supply_sensor_error": {
+        "default": "mdi:thermometer-alert"
+      }
+    },
+    "switch": {
+      "power": {
+        "default": "mdi:hvac",
+        "state": {
+          "on": "mdi:hvac",
+          "off": "mdi:hvac-off"
+        }
+      }
+    },
+    "number": {
+      "bypass_min_temp": {
+        "default": "mdi:thermometer-low"
+      },
+      "bypass_y_range": {
+        "default": "mdi:thermometer-high"
+      }
+    },
+    "select": {
+      "exhaust_speed": {
+        "default": "mdi:fan",
+        "state": {
+          "off": "mdi:fan-off",
+          "speed_1": "mdi:fan-speed-1",
+          "speed_2": "mdi:fan-speed-2",
+          "speed_3": "mdi:fan-speed-3"
+        }
+      },
+      "supply_speed": {
+        "default": "mdi:fan",
+        "state": {
+          "off": "mdi:fan-off",
+          "speed_1": "mdi:fan-speed-1",
+          "speed_2": "mdi:fan-speed-2",
+          "speed_3": "mdi:fan-speed-3"
+        }
+      }
+    },
+    "button": {
+      "clear_filter_alarm": {
+        "default": "mdi:air-filter"
+      },
+      "clear_weekly_timer": {
+        "default": "mdi:timer-remove-outline"
+      }
+    }
+  }
+}
