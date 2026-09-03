@@ -30,7 +30,6 @@ DESCRIPTIONS: tuple[VolcaneNumberDescription, ...] = (
     VolcaneNumberDescription(
         key="bypass_min_temp",
         translation_key="bypass_min_temp",
-        icon="mdi:thermometer-low",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         native_min_value=5,
         native_max_value=30,
@@ -42,7 +41,6 @@ DESCRIPTIONS: tuple[VolcaneNumberDescription, ...] = (
     VolcaneNumberDescription(
         key="bypass_y_range",
         translation_key="bypass_y_range",
-        icon="mdi:thermometer-high",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         native_min_value=2,
         native_max_value=15,

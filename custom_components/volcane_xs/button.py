@@ -17,13 +17,11 @@ class VolcaneCommandButton(ButtonEntity):
         coordinator: VolcaneCoordinator,
         key: str,
         translation_key: str,
-        icon: str,
         command: int,
     ) -> None:
         self._coordinator = coordinator
         self._command = command
         self._attr_translation_key = translation_key
-        self._attr_icon = icon
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{key}"
         self._attr_device_info = coordinator.device_info
 
@@ -43,14 +41,12 @@ async def async_setup_entry(
                 coordinator,
                 "clear_filter_alarm",
                 "clear_filter_alarm",
-                "mdi:air-filter",
                 1,
             ),
             VolcaneCommandButton(
                 coordinator,
                 "clear_weekly_timer",
                 "clear_weekly_timer",
-                "mdi:timer-remove-outline",
                 2,
             ),
         ]
