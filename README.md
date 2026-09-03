@@ -25,6 +25,48 @@ entities for controls the classic Modbus YAML platform cannot express.
 
 Copy `custom_components/volcane_xs` into your Home Assistant `config/custom_components/` directory and restart.
 
+## Connecting the unit to Home Assistant
+
+The Volcane XS only exposes Modbus over an RS-485 connector on the board —
+there's no Ethernet/WiFi on the unit itself. The recommended way to bridge
+it to Home Assistant is a small RS-485-to-WiFi gateway such as the
+**Elfin EW11**, wired directly to the Modbus connector already provided on
+the board.
+
+Configure the EW11 (or equivalent gateway) as follows, in its own web UI:
+
+**Serial Port Settings**
+
+| Setting | Value |
+|---|---|
+| Baud Rate | `4800` |
+| Data Bit | `8` |
+| Stop Bit | `1` |
+| Parity | `None` |
+| Flow Control | `Half Duplex` |
+| Protocol | `Modbus` |
+
+> The baud rate can vary between units/firmware revisions — `4800` is what
+> worked on the reference unit, but `9600` has also been reported to work
+> on other units. If the gateway can't get a response at one rate, try the
+> other before troubleshooting further.
+
+**Communication Settings** (the `netp` socket)
+
+| Setting | Value |
+|---|---|
+| Protocol | `Tcp Server` |
+| Local Port | `502` |
+| Route | `Uart` |
+| Security | `Disable` |
+
+Once the gateway is on your network, use its IP address and the port above
+(`502`) as the Host/Port when setting up the integration below. If you see
+intermittent timeouts, increase the gateway's serial **Gap Time** (or the
+equivalent `message_wait_milliseconds`/`message_spacing` setting) — some
+gateways need extra spacing between requests to talk to this unit
+reliably.
+
 ## Configuration
 
 Settings → Devices & Services → **Add Integration** → search for "Volcane XS".
