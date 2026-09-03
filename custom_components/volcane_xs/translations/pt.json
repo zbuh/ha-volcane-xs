@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ligar ao Volcane XS",
+        "data": {
+          "host": "Anfitrião",
+          "port": "Porta",
+          "unit_id": "ID da unidade Modbus"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Falha ao ligar. Verifica o anfitrião, a porta e o ID da unidade."
+    },
+    "abort": {
+      "already_configured": "Este dispositivo já está configurado"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "return_air_temperature": {
+        "name": "Temperatura do ar de retorno"
+      },
+      "outdoor_air_temperature": {
+        "name": "Temperatura do ar exterior"
+      },
+      "exhaust_air_temperature": {
+        "name": "Temperatura do ar de escape"
+      },
+      "supply_air_temperature": {
+        "name": "Temperatura do ar abastecido"
+      },
+      "operating_hours": {
+        "name": "Horas de funcionamento"
+      }
+    },
+    "binary_sensor": {
+      "boost_active": {
+        "name": "Boost ativo"
+      },
+      "fire_alarm": {
+        "name": "Alarme de incêndio"
+      },
+      "bypass_active": {
+        "name": "Bypass ativo"
+      },
+      "defrost_active": {
+        "name": "Descongelação ativa"
+      },
+      "outdoor_sensor_error": {
+        "name": "Erro no sensor de ar exterior"
+      },
+      "eeprom_error": {
+        "name": "Erro de EEPROM"
+      },
+      "return_sensor_error": {
+        "name": "Erro no sensor de ar de retorno"
+      },
+      "exhaust_sensor_error": {
+        "name": "Erro no sensor de ar de escape"
+      },
+      "filter_alarm": {
+        "name": "Alarme de filtro"
+      },
+      "supply_sensor_error": {
+        "name": "Erro no sensor de ar abastecido"
+      },
+      "supply_fan_error": {
+        "name": "Erro no ventilador de alimentação"
+      },
+      "exhaust_fan_error": {
+        "name": "Erro no ventilador de exaustão"
+      }
+    },
+    "switch": {
+      "power": {
+        "name": "Ligar/Desligar"
+      }
+    },
+    "number": {
+      "bypass_min_temp": {
+        "name": "Temperatura mínima do bypass"
+      },
+      "bypass_y_range": {
+        "name": "Gama do bypass acima do mínimo"
+      }
+    },
+    "select": {
+      "exhaust_speed": {
+        "name": "Velocidade de exaustão",
+        "state": {
+          "off": "Desligado",
+          "speed_1": "Velocidade 1",
+          "speed_2": "Velocidade 2",
+          "speed_3": "Velocidade 3"
+        }
+      },
+      "supply_speed": {
+        "name": "Velocidade de alimentação",
+        "state": {
+          "off": "Desligado",
+          "speed_1": "Velocidade 1",
+          "speed_2": "Velocidade 2",
+          "speed_3": "Velocidade 3"
+        }
+      }
+    },
+    "button": {
+      "clear_filter_alarm": {
+        "name": "Limpar alarme de filtro"
+      },
+      "clear_weekly_timer": {
+        "name": "Apagar temporizador semanal"
+      }
+    }
+  }
+}
