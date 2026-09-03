@@ -17,8 +17,11 @@ Confirmed by testing with `mbpoll` against a real unit:
   (input register) never answers — everything lives in the holding space.
 - Writes: function code **06** (write single holding register).
 - Addressing is 0-based.
-- Serial parameters (behind a TCP gateway): 9600 baud, 8 data bits, parity
-  None or Even (no observed difference), 1 stop bit.
+- Serial parameters (behind a TCP gateway): 8 data bits, parity None or
+  Even (no observed difference), 1 stop bit. Baud rate appears to vary by
+  unit/firmware — 9600 was confirmed via `mbpoll` on one unit, while an
+  Elfin EW11 gateway on another unit works at 4800. Try both if a gateway
+  gets no response.
 - Some TCP gateways need a spacing delay between requests (e.g.
   `message_wait_milliseconds: 250` under the classic Modbus YAML hub
   config) to be reliable — carry this over as `message_spacing` on the
