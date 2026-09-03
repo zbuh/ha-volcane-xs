@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Volcane XS",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "unit_id": "Modbus unit ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect. Check the host, port and unit ID."
+    },
+    "abort": {
+      "already_configured": "This device is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "return_air_temperature": {
+        "name": "Return air temperature"
+      },
+      "outdoor_air_temperature": {
+        "name": "Outdoor air temperature"
+      },
+      "exhaust_air_temperature": {
+        "name": "Exhaust air temperature"
+      },
+      "supply_air_temperature": {
+        "name": "Supply air temperature"
+      },
+      "operating_hours": {
+        "name": "Operating hours"
+      }
+    },
+    "binary_sensor": {
+      "boost_active": {
+        "name": "Boost active"
+      },
+      "fire_alarm": {
+        "name": "Fire alarm"
+      },
+      "bypass_active": {
+        "name": "Bypass active"
+      },
+      "defrost_active": {
+        "name": "Defrost active"
+      },
+      "outdoor_sensor_error": {
+        "name": "Outdoor air sensor error"
+      },
+      "eeprom_error": {
+        "name": "EEPROM error"
+      },
+      "return_sensor_error": {
+        "name": "Return air sensor error"
+      },
+      "exhaust_sensor_error": {
+        "name": "Exhaust air sensor error"
+      },
+      "filter_alarm": {
+        "name": "Filter alarm"
+      },
+      "supply_sensor_error": {
+        "name": "Supply air sensor error"
+      },
+      "supply_fan_error": {
+        "name": "Supply fan error"
+      },
+      "exhaust_fan_error": {
+        "name": "Exhaust fan error"
+      }
+    },
+    "switch": {
+      "power": {
+        "name": "Power"
+      }
+    },
+    "number": {
+      "bypass_min_temp": {
+        "name": "Bypass minimum temperature"
+      },
+      "bypass_y_range": {
+        "name": "Bypass range above minimum"
+      }
+    },
+    "select": {
+      "exhaust_speed": {
+        "name": "Exhaust fan speed",
+        "state": {
+          "off": "Off",
+          "speed_1": "Speed 1",
+          "speed_2": "Speed 2",
+          "speed_3": "Speed 3"
+        }
+      },
+      "supply_speed": {
+        "name": "Supply fan speed",
+        "state": {
+          "off": "Off",
+          "speed_1": "Speed 1",
+          "speed_2": "Speed 2",
+          "speed_3": "Speed 3"
+        }
+      }
+    },
+    "button": {
+      "clear_filter_alarm": {
+        "name": "Clear filter alarm"
+      },
+      "clear_weekly_timer": {
+        "name": "Clear weekly timer"
+      }
+    }
+  }
+}

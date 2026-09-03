@@ -1,0 +1,12 @@
+{
+  "domain": "volcane_xs",
+  "name": "Volcane XS",
+  "codeowners": ["@zbuh"],
+  "config_flow": true,
+  "dependencies": ["modbus"],
+  "documentation": "https://github.com/zbuh/ha-volcane-xs",
+  "issue_tracker": "https://github.com/zbuh/ha-volcane-xs/issues",
+  "iot_class": "local_polling",
+  "requirements": ["modbus-connection[tmodbus]==4.10.0"],
+  "version": "0.1.0"
+}
