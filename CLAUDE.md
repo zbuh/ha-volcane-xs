@@ -3,32 +3,7 @@
 Home Assistant custom integration for the Cairox / France Air **Volcane XS 250**
 heat-recovery ventilation unit, over Modbus TCP, built on the
 [`modbus-connection`](https://home-assistant-libs.github.io/modbus-connection/)
-library introduced in Home Assistant 2026.9. Target: publish to HACS as a
-custom repository once stable (v0.1).
-
-## Repo vs. live test instance
-
-This repo is a git clone at `~/stuff/ha-volcane-xs`. It is **not** the same
-checkout as the live test deployment, which lives on the Home Assistant
-instance's config share at `/Volumes/config/custom_components/volcane_xs`
-(that share is not a git repo — see its own `CLAUDE.md`). Changes get edited
-in one place and copied to the other by hand (or `rsync`) — there is no
-symlink or CI sync between them yet. Before publishing, always confirm both
-copies match.
-
-To push local repo changes to the live instance for testing:
-
-```bash
-rsync -av --exclude='__pycache__' \
-  ~/stuff/ha-volcane-xs/custom_components/volcane_xs/ \
-  /Volumes/config/custom_components/volcane_xs/
-```
-
-The live instance also runs `packages/vmc.yaml`, the original YAML Modbus
-config for the same physical unit, in parallel — see
-[Known quirks](#known-quirks--gotchas) about the double-writer risk this
-creates. The plan is to retire that YAML package once this integration
-reaches parity and is proven stable, but it has not been touched yet.
+library introduced in Home Assistant 2026.9.
 
 ## The device
 
@@ -36,17 +11,18 @@ Cairox / France Air Volcane XS 250, this variant with **no CO2 sensor, no
 humidity sensor, no electric heater** installed (those registers exist on
 other hardware variants and are intentionally not implemented here).
 
-Confirmed by testing with `mbpoll` against the real unit:
+Confirmed by testing with `mbpoll` against a real unit:
 
 - Reads: function code **03** (holding register) only. Function code 04
   (input register) never answers — everything lives in the holding space.
 - Writes: function code **06** (write single holding register).
 - Addressing is 0-based.
-- Serial parameters (behind the TCP gateway): 9600 baud, 8 data bits, parity
+- Serial parameters (behind a TCP gateway): 9600 baud, 8 data bits, parity
   None or Even (no observed difference), 1 stop bit.
-- The gateway needed `message_wait_milliseconds: 250` under the classic
-  Modbus YAML hub config to be reliable — carry this over as
-  `message_spacing` on the connection/unit if the integration sees timeouts.
+- Some TCP gateways need a spacing delay between requests (e.g.
+  `message_wait_milliseconds: 250` under the classic Modbus YAML hub
+  config) to be reliable — carry this over as `message_spacing` on the
+  connection/unit if you see timeouts.
 
 ### Register map
 
@@ -110,9 +86,9 @@ varies):
 
 Consumption is roughly additive (baseline + each motor's own contribution).
 Code 0 really means stopped (~4 W total, matching the unit fully powered
-off at ~3 W) — an earlier reading that assumed code 0 left a "minimum idle
-speed" running was an artifact of the other motor being non-zero during
-that test, not real behavior.
+off at ~3 W) — a reading that assumes code 0 leaves a "minimum idle speed"
+running is an artifact of the other motor being non-zero during that test,
+not real behavior.
 
 ## modbus-connection library notes
 
@@ -156,14 +132,15 @@ Key API points relevant to this integration:
   decodes to an `IntFlag` (unknown bits kept). Both are built on
   `NumberField`, so they accept the same `writable`/`signed`/`nan` options
   as `integer`.
-- The custom integration owns its `ModbusConnection` indirectly: it asks
-  the core `modbus` integration (a manifest `dependencies` entry) for a
-  shared unit via `async_get_unit(hass, entry, params, unit_id)` in
-  `async_setup_entry`, and `async_get_temporary_unit(...)` (async context
-  manager) during config flow validation. This is how multiple integrations
-  talking to the same physical link end up sharing one TCP connection
-  instead of opening competing sockets — relevant here since the same unit
-  is also addressed by `packages/vmc.yaml`'s YAML `modbus:` hub.
+- A custom integration built this way owns its `ModbusConnection`
+  indirectly: it asks the core `modbus` integration (a manifest
+  `dependencies` entry) for a shared unit via
+  `async_get_unit(hass, entry, params, unit_id)` in `async_setup_entry`,
+  and `async_get_temporary_unit(...)` (async context manager) during config
+  flow validation. This is how multiple integrations talking to the same
+  physical link end up sharing one TCP connection instead of opening
+  competing sockets — relevant if the same device is also addressed by a
+  classic YAML `modbus:` hub.
 - Do **not** reload the config entry when the connection drops —
   reconnection is automatic on the next poll. `ModbusConnectionError` /
   `ModbusTimeoutError` / `ModbusExceptionError` all subclass `ModbusError`;
@@ -195,51 +172,29 @@ Key API points relevant to this integration:
 
 ## Known quirks / gotchas
 
-- **Double-writer risk while both integrations run.** `packages/vmc.yaml`
-  (YAML `modbus:` hub) and this custom integration both currently target
-  the same device and the same registers (2, 3, 9, 10, 11, 24). Until the
-  YAML package is retired, avoid driving the same control from both sides
-  at the same time (e.g. the old `input_number` bypass sliders and the new
-  `number` entities).
-- **Select entity `state` translations were not applying** to the option
-  display text in initial testing (entity *names* translated fine, but
-  `select.<key>.state.<option>` did not — e.g. "Speed 1" stayed in English
-  under a Portuguese HA profile). Suspected frontend translation cache,
-  since the translation files were brand new that session. Not yet
-  confirmed fixed — check this again before release, ideally with a hard
-  browser refresh or a private window.
+- **Double-writer risk when migrating from a classic YAML `modbus:`
+  config.** If a device was previously set up via the YAML Modbus platform
+  (hub + `input_number`/`input_select` + scripts driving the same
+  registers), don't run both configs against the same registers at the
+  same time — retire the YAML config once this integration is confirmed
+  working, rather than leaving both active indefinitely.
+- **Select entity `state` translations may not apply immediately** to the
+  option display text after adding/changing translation files — entity
+  *names* pick up new translations fine, but `select.<key>.state.<option>`
+  can lag behind (e.g. an English option label surviving under a
+  non-English HA profile). Likely a frontend translation cache; a hard
+  browser refresh (or private window) is the first thing to try before
+  assuming the translation JSON itself is wrong.
 - **Renaming `key=`/`translation_key` values on an `EntityDescription`
   changes the entity's `unique_id`.** Old entities become orphaned in the
   registry (visible as unavailable) and need manual removal via *Settings →
-  Devices & Services → Entities*. This happened during the PT→EN
-  identifier rename; expect it again for any future key rename.
+  Devices & Services → Entities*.
 - Brand images live at `custom_components/volcane_xs/brand/icon.png` +
   `icon@2x.png` (256×256 / 512×512, square, transparent background) — this
   is the HA 2026.3+ mechanism for custom integrations to ship their own
-  icon without a PR to `home-assistant/brands`. No `logo.png` needed since
+  icon without a PR to `home-assistant/brands`. No `logo.png` needed when
   it would just be the same square image.
 - `manifest.json` declares `"dependencies": ["modbus"]` — this pulls in the
   core `modbus` integration for its `async_get_unit`/`async_get_temporary_unit`
   shared-connection helpers, independent of whether the user has any YAML
   `modbus:` config of their own.
-
-## Testing workflow
-
-When testing against the live unit, escalate by risk:
-
-1. Read-only entities first (`sensor`, `binary_sensor`) — zero risk.
-2. `switch` (power) — real effect, but simple and reversible.
-3. `select` (fan speeds) and `button` (commands) last, one at a time,
-   without touching the old YAML-driven controls at the same time.
-
-## Status
-
-Not yet pushed to `github.com/zbuh/ha-volcane-xs` (currently one local
-commit). Waiting on a stable v0.1 — outstanding before then:
-
-- [ ] Confirm the `select` state-translation issue above.
-- [ ] Verify `write()` behaves correctly on the never-updated
-      `SupplyFanSpeed`/`Commands` components under real use (see
-      write-only-component caveat above).
-- [ ] Decide whether to retire the YAML package once this is proven, and
-      document the cutover.
