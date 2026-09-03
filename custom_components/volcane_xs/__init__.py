@@ -57,7 +57,7 @@ class VolcaneCoordinator(DataUpdateCoordinator[None]):
             identifiers={(DOMAIN, self.config_entry.entry_id)},
             name="Volcane XS",
             manufacturer="Cairox / France Air",
-            model="Volcane XS 250",
+            model="Volcane XS",
         )
 
 
