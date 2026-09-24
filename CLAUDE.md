@@ -191,12 +191,21 @@ Key API points relevant to this integration:
 
 ## Integration architecture
 
-- `device.py` — the register map (`BypassSettings`, `DefrostSettings`,
-  `DeviceStatus`, `SupplyFanSpeed`, `Commands` components) and the
-  `VolcaneDevice` wrapper that groups them. `VolcaneDevice.async_update()`
-  only updates the three readable components (`bypass`, `defrost`,
-  `status`); `supply_fan` and `commands` are intentionally never polled
-  (see write-only note above).
+- `device.py` — the register map (`AutoRestartSetting`, `BypassSettings`,
+  `DefrostSettings`, `DeviceStatus`, `SupplyFanSpeed`, `Commands`
+  components) and the `VolcaneDevice` wrapper that groups them.
+  `VolcaneDevice.async_update()` updates the four readable components
+  (`auto_restart`, `bypass`, `defrost`, `status`); `supply_fan` and
+  `commands` are intentionally never polled (see write-only note above).
+  `AutoRestartSetting` (register 0) is split out on its own rather than
+  folded into `DeviceStatus`: `Component.async_update()` pools a
+  component's fields into as few reads as possible, and merging register
+  0 with `DeviceStatus`'s existing 9-25 span produced one 26-register
+  read that the unit never answered (confirmed: 10s timeout, every time,
+  only once register 0 joined the same component). Keep an eye on this
+  when adding new fields to any polled component — check what read span
+  the addition produces, not just whether the register itself works
+  standalone.
 - `__init__.py` — `VolcaneCoordinator` (30s poll), shared `device_info`,
   `async_get_unit` wiring.
 - `config_flow.py` — host/port/unit id form, validated with
