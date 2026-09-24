@@ -88,6 +88,9 @@
           "speed_2": "mdi:fan-speed-2",
           "speed_3": "mdi:fan-speed-3"
         }
+      },
+      "filter_alarm_interval": {
+        "default": "mdi:calendar-clock"
       }
     },
     "button": {

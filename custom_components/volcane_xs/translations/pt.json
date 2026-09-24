@@ -104,6 +104,15 @@
           "speed_2": "Velocidade 2",
           "speed_3": "Velocidade 3"
         }
+      },
+      "filter_alarm_interval": {
+        "name": "Intervalo do alarme de filtro",
+        "state": {
+          "45_days": "45 dias",
+          "60_days": "60 dias",
+          "90_days": "90 dias",
+          "180_days": "180 dias"
+        }
       }
     },
     "button": {
