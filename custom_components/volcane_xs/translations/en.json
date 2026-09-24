@@ -104,6 +104,15 @@
           "speed_2": "Speed 2",
           "speed_3": "Speed 3"
         }
+      },
+      "filter_alarm_interval": {
+        "name": "Filter alarm interval",
+        "state": {
+          "45_days": "45 days",
+          "60_days": "60 days",
+          "90_days": "90 days",
+          "180_days": "180 days"
+        }
       }
     },
     "button": {

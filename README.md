@@ -90,6 +90,7 @@ You will be asked for:
 | `switch` | Power | The unit's real on/off switch |
 | `select` | Exhaust fan speed | Off / Speed 1 / 2 / 3, live readback |
 | `select` | Supply fan speed | Off / Speed 1 / 2 / 3, **write-only** (see below) |
+| `select` | Filter alarm interval | 45 / 60 / 90 / 180 days, live readback |
 | `number` | Bypass minimum temperature | 5-30 °C |
 | `number` | Bypass range above minimum | 2-15 °C |
 | `button` | Clear filter alarm, clear weekly timer | |
