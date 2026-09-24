@@ -1,5 +1,5 @@
-"""Native number entities for the bypass -- what the classic Modbus YAML
-platform cannot express."""
+"""Native number entities for the bypass and defrost settings -- what the
+classic Modbus YAML platform cannot express."""
 
 from __future__ import annotations
 
@@ -11,19 +11,24 @@ from homeassistant.components.number import (
     NumberEntityDescription,
     NumberMode,
 )
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import VolcaneConfigEntry, VolcaneCoordinator
-from .device import BypassSettings
+from .device import VolcaneDevice
 
 
 @dataclass(frozen=True, kw_only=True)
 class VolcaneNumberDescription(NumberEntityDescription):
+    component: str
+    """Attribute name on VolcaneDevice holding the target Component."""
+
     attr: str
-    value_fn: Callable[[BypassSettings], float | None]
+    """Attribute name on that Component for read and write."""
+
+    value_fn: Callable[[VolcaneDevice], float | None]
 
 
 DESCRIPTIONS: tuple[VolcaneNumberDescription, ...] = (
@@ -35,8 +40,9 @@ DESCRIPTIONS: tuple[VolcaneNumberDescription, ...] = (
         native_max_value=30,
         native_step=1,
         mode=NumberMode.SLIDER,
+        component="bypass",
         attr="min_temp",
-        value_fn=lambda bypass: bypass.min_temp,
+        value_fn=lambda device: device.bypass.min_temp,
     ),
     VolcaneNumberDescription(
         key="bypass_y_range",
@@ -46,8 +52,45 @@ DESCRIPTIONS: tuple[VolcaneNumberDescription, ...] = (
         native_max_value=15,
         native_step=1,
         mode=NumberMode.SLIDER,
+        component="bypass",
         attr="y_range",
-        value_fn=lambda bypass: bypass.y_range,
+        value_fn=lambda device: device.bypass.y_range,
+    ),
+    VolcaneNumberDescription(
+        key="defrost_interval",
+        translation_key="defrost_interval",
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        native_min_value=15,
+        native_max_value=99,
+        native_step=1,
+        mode=NumberMode.SLIDER,
+        component="defrost",
+        attr="interval",
+        value_fn=lambda device: device.defrost.interval,
+    ),
+    VolcaneNumberDescription(
+        key="defrost_entry_temperature",
+        translation_key="defrost_entry_temperature",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        native_min_value=-9,
+        native_max_value=5,
+        native_step=1,
+        mode=NumberMode.SLIDER,
+        component="defrost",
+        attr="entry_temperature",
+        value_fn=lambda device: device.defrost.entry_temperature,
+    ),
+    VolcaneNumberDescription(
+        key="defrost_duration",
+        translation_key="defrost_duration",
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        native_min_value=2,
+        native_max_value=20,
+        native_step=1,
+        mode=NumberMode.SLIDER,
+        component="defrost",
+        attr="duration",
+        value_fn=lambda device: device.defrost.duration,
     ),
 )
 
@@ -66,10 +109,11 @@ class VolcaneNumber(CoordinatorEntity[VolcaneCoordinator], NumberEntity):
 
     @property
     def native_value(self) -> float | None:
-        return self.entity_description.value_fn(self.coordinator.device.bypass)
+        return self.entity_description.value_fn(self.coordinator.device)
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.device.bypass.write(self.entity_description.attr, int(value))
+        component = getattr(self.coordinator.device, self.entity_description.component)
+        await component.write(self.entity_description.attr, int(value))
         await self.coordinator.async_request_refresh()
 
 

@@ -18,10 +18,20 @@ Confirmed by testing with `mbpoll` against a real unit:
 - Writes: function code **06** (write single holding register).
 - Addressing is 0-based.
 - Serial parameters (behind a TCP gateway): 8 data bits, parity None or
-  Even (no observed difference), 1 stop bit. Baud rate appears to vary by
-  unit/firmware — 9600 was confirmed via `mbpoll` on one unit, while an
-  Elfin EW11 gateway on another unit works at 4800. Try both if a gateway
-  gets no response.
+  Even (no observed difference), 1 stop bit. Baud rate is selected by a
+  physical DIP switch on the board, **SW4-4**: off = 4800 (default), on =
+  9600 (confirmed by the official manual — cut power before flipping it).
+  This is why one unit tested at 9600 via `mbpoll` while an Elfin EW11 on
+  another unit works at 4800 — it's just a switch position, not a
+  unit/firmware difference. Check SW4-4 first if a gateway gets no
+  response.
+- Three other DIP switches on the same block (SW4-1 to SW4-3, per the
+  official manual) are unrelated to Modbus: SW4-1 picks the defrost
+  strategy (traditional EA-fan defrost vs. an OA-side electric preheater,
+  only relevant below -15°C outdoor), SW4-2 disables the bypass function
+  entirely when on, SW4-3 switches the forced-ventilation input between
+  CO2-sensor and humidity+CO2-sensor mode (only meaningful with those
+  sensors installed).
 - Some TCP gateways need a spacing delay between requests (e.g.
   `message_wait_milliseconds: 250` under the classic Modbus YAML hub
   config) to be reliable — carry this over as `message_spacing` on the
@@ -33,10 +43,26 @@ Probe correspondence, confirmed against the LCD panel and board diagram:
 register 12 = RA (return air), 13 = OA (outdoor air), 14 = EA (exhaust air),
 15 = SA (supply air, also reused for defrost detection).
 
+An official manual surfaced later (France Air "Manual de Instruções
+Volcane XS", version JUL25/V1.0) and its section 10 ("Endereço ModBus
+Eco-Smart") matches this device register-for-register against everything
+already confirmed by testing. **Careful**: that PDF is a combined manual
+covering multiple controller variants — its earlier section 3 (a
+touch-screen controller, also nominally covering "XS 250, XS 350, XS
+500") describes a *different, incompatible* register map at the same
+addresses (e.g. power at register 0, temperatures on a −20 offset). Only
+section 10's "Eco-Smart" table — the plain segment-LCD controller this
+integration targets — has been cross-checked against real hardware. Don't
+pull register info from that other section.
+
 | Register | Access | Meaning | Notes |
 |---|---|---|---|
+| 0 | R/W | Auto-restart after power loss | 0/1, default 1. Confirmed via `mbpoll`: read/write round-trip |
 | 2 | R/W | Bypass min temperature (X) | 5–30 °C. Bypass opens when outdoor temp is between X and X+Y |
 | 3 | R/W | Bypass Y range | 2–15 °C. Real max = X + Y. Writing Y=0 or Y=1 is invalid (below device min of 2) |
+| 4 | R/W | Defrost check interval | 15–99 min, default 30. Confirmed via `mbpoll` |
+| 5 | R/W | Defrost entry temperature | −9–5 °C, default −1. Confirmed via `mbpoll` — and it uses the **same +40 offset** as the temperature sensors below (factory-read raw `39` = actual `−1`; this wasn't obvious at first, the raw value looked like unrelated garbage until write-testing a positive number worked but a negative one round-tripped wrong) |
+| 6 | R/W | Defrost duration | 2–20 min, default 10. Confirmed via `mbpoll` |
 | 9 | R/W | Power on/off | 0/1. The unit's real power switch |
 | 10 | **write-only** | Supply fan speed | Never answers a read (confirmed) — codes below |
 | 11 | R/W | Exhaust fan speed | Answers reads, unlike register 10 — codes below |
@@ -45,12 +71,21 @@ register 12 = RA (return air), 13 = OA (outdoor air), 14 = EA (exhaust air),
 | 14 | R | Exhaust air temperature | same offset |
 | 15 | R | Supply air temperature | same offset |
 | 16 | R | Boost active | Reflects an *external* dry-contact relay (e.g. a Shelly), **not** controllable via Modbus. Physically separate circuit from the unit's own fan speed control |
-| 18 | R | Alarm bits (raw) | bit0 fire, bit1 bypass active, bit3 defrost |
+| 18 | R | Alarm bits (raw) | bit0 fire, bit1 bypass on, bit2 bypass off (unused — bit1's absence already means "not active"), bit3 defrost |
 | 20 | R | Error symbol bits (raw) | see table below |
-| 23 | R (config) | Speed mode | Must be `1` for 3-speed mode — confirmed on this unit. Not exposed as an entity |
+| 23 | R (config) | Speed mode | Must be `1` for 3-speed mode — confirmed on this unit. `0`=2-speed, `2`=10-speed (DC) are the same field on other variants. Not exposed as an entity |
 | 24 | R/W (unpolled) | Command register | `1` clears the dirty-filter alarm, `2` clears the weekly timers. **Not** a configuration parameter — that's register 25, right next to it. A direct `mbpoll` read returned `0`, so it's not actually unreadable like register 10; it's just excluded from polling because there's nothing meaningful to read back (see `Commands` in `device.py`) |
 | 25 | R/W | Filter alarm interval | `0`=45 days, `1`=60 days, `2`=90 days, `3`=180 days. Confirmed via `mbpoll`: write/read-back round-trips for all four codes. Firmware does not validate the range — writing `4` was accepted verbatim, not rejected or clamped, so range validation is left to the integration |
 | 769 | R | Operating hours | uint16, scale 0.1, unit h |
+
+Registers that exist per the official manual but are **intentionally not
+implemented** (not tested on this unit, since the hardware they configure
+isn't installed): 1 (electric heater enable), 7 (CO2 threshold), 8 (this
+unit's own Modbus ID, 1–16 — deliberately not exposed as a writable
+entity, since writing it would change the address you're talking to
+mid-transaction), 17 (CO2 signal on/off), 19 (humidity setpoint), 21
+(ERV model-correspondence code, factory/installer setting), 27 (heater
+activation temperature), 768 (CO2 ppm), 770 (indoor humidity).
 
 Fan speed codes (registers 10 and 11), confirmed with the unit in 3-speed
 mode (register 23 = 1). Only these four codes are valid; others (1,4,6,7,
@@ -71,7 +106,7 @@ Error symbol bits (register 20):
 | 1 | EEPROM error |
 | 2 | Return air (RA) sensor error |
 | 3 | Exhaust air (EA) sensor error |
-| 4 | Filter alarm — **never confirmed against a real active alarm**. The translated manual's bit table skips from bit 3 to bit 5; this position was assumed from another model's documentation. If it's ever seen not to match reality, adjust or remove |
+| 4 | **Likely doesn't exist.** Previously mapped to "filter alarm" on a guess from another model's documentation, since the translated manual's bit table skipped from bit 3 to bit 5 with no explanation. The official manual's own table (see above) also has no bit 4 entry — it jumps B3→B5 the same way — and its bits cross-reference cleanly 1:1 against the front-panel E1-E8 error codes with no gap needed for a filter alarm. `ErrorSymbol.FILTER` (`device.py`) and the `filter_alarm` binary_sensor built on it are still shipped as of v0.2.0 but are now believed wrong; there's no way to force-trigger this bit for a real test, so this can't be fully confirmed short of it firing on its own one day |
 | 5 | Supply air (SA) sensor error |
 | 6 | Supply fan error |
 | 7 | Exhaust fan error |
@@ -156,11 +191,12 @@ Key API points relevant to this integration:
 
 ## Integration architecture
 
-- `device.py` — the register map (`BypassSettings`, `DeviceStatus`,
-  `SupplyFanSpeed`, `Commands` components) and the `VolcaneDevice` wrapper
-  that groups them. `VolcaneDevice.async_update()` only updates the two
-  readable components (`bypass`, `status`); `supply_fan` and `commands` are
-  intentionally never polled (see write-only note above).
+- `device.py` — the register map (`BypassSettings`, `DefrostSettings`,
+  `DeviceStatus`, `SupplyFanSpeed`, `Commands` components) and the
+  `VolcaneDevice` wrapper that groups them. `VolcaneDevice.async_update()`
+  only updates the three readable components (`bypass`, `defrost`,
+  `status`); `supply_fan` and `commands` are intentionally never polled
+  (see write-only note above).
 - `__init__.py` — `VolcaneCoordinator` (30s poll), shared `device_info`,
   `async_get_unit` wiring.
 - `config_flow.py` — host/port/unit id form, validated with
