@@ -48,7 +48,8 @@ register 12 = RA (return air), 13 = OA (outdoor air), 14 = EA (exhaust air),
 | 18 | R | Alarm bits (raw) | bit0 fire, bit1 bypass active, bit3 defrost |
 | 20 | R | Error symbol bits (raw) | see table below |
 | 23 | R (config) | Speed mode | Must be `1` for 3-speed mode — confirmed on this unit. Not exposed as an entity |
-| 24 | **write-only** | Command register | `1` clears the dirty-filter alarm, `2` clears the weekly timers. **Not** a configuration parameter (an earlier reading of the manual wrongly assumed 24/25 configured an alarm interval in days — that was wrong) |
+| 24 | R/W (unpolled) | Command register | `1` clears the dirty-filter alarm, `2` clears the weekly timers. **Not** a configuration parameter — that's register 25, right next to it. A direct `mbpoll` read returned `0`, so it's not actually unreadable like register 10; it's just excluded from polling because there's nothing meaningful to read back (see `Commands` in `device.py`) |
+| 25 | R/W | Filter alarm interval | `0`=45 days, `1`=60 days, `2`=90 days, `3`=180 days. Confirmed via `mbpoll`: write/read-back round-trips for all four codes. Firmware does not validate the range — writing `4` was accepted verbatim, not rejected or clamped, so range validation is left to the integration |
 | 769 | R | Operating hours | uint16, scale 0.1, unit h |
 
 Fan speed codes (registers 10 and 11), confirmed with the unit in 3-speed
@@ -121,15 +122,19 @@ Key API points relevant to this integration:
   name. Fields must be declared `writable=True` or `writable=<validator>`
   (a callable that raises `ValueError` to reject a value, otherwise returns
   the value to write).
-- **Write-only registers** (this device: 10 and 24) have no equivalent to
-  "exclude from reads but keep writable" inside one `Component` —
-  `restrict_fields()` excludes a field from *both* reads and writes. The
-  approach used here: put write-only registers in their **own `Component`
-  subclass that is never passed to a coordinator's `async_update()` loop**
-  — only `write()` is ever called on it, on demand, from an entity. This is
-  a documented-by-inference pattern, not an explicit example in the
-  library's docs; if writes on an unread component ever misbehave, that
-  assumption is the first thing to revisit.
+- **Write-only registers** (register 10, the only one confirmed to never
+  answer a read) have no equivalent to "exclude from reads but keep
+  writable" inside one `Component` — `restrict_fields()` excludes a field
+  from *both* reads and writes. The approach used here: put it in its
+  **own `Component` subclass that is never passed to a coordinator's
+  `async_update()` loop** — only `write()` is ever called on it, on
+  demand, from an entity. This is a documented-by-inference pattern, not
+  an explicit example in the library's docs; if writes on an unread
+  component ever misbehave, that assumption is the first thing to
+  revisit. Register 24 (`Commands`) uses the same unpolled pattern even
+  though it does answer reads (confirmed by testing, returns `0`) — it's
+  excluded because it's a momentary command trigger with nothing
+  meaningful to poll, not because the read fails.
 - `enum(address, EnumClass, writable=...)` decodes to an `IntEnum` member
   (unknown codes → `None`, warned once). `flags(address, FlagClass)`
   decodes to an `IntFlag` (unknown bits kept). Both are built on
