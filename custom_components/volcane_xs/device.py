@@ -49,9 +49,12 @@ class BypassAlarm(IntFlag):
 class ErrorSymbol(IntFlag):
     """Bits of register 20 (raw).
 
-    Bit 4 (FILTER) is missing from the translated manual's bit table (it
-    jumps from bit 3 to bit 5) and has never been confirmed against a real
-    active alarm -- assumed from another model's documentation.
+    FILTER (bit 4) is likely wrong: an official manual surfaced later and
+    its own bit table also has no bit 4 entry (jumps B3->B5, same gap),
+    cross-referencing cleanly against the front-panel E1-E8 error codes
+    with no bit to spare for a filter alarm. Kept for now since there's no
+    way to force-trigger it for a real test -- see the register 20 note
+    in CLAUDE.md.
     """
 
     OUTDOOR_SENSOR = 1
@@ -87,8 +90,37 @@ class BypassSettings(Component):
     """Range above the minimum (Y), 2-15 °C. Real max = min_temp + y_range."""
 
 
+class DefrostSettings(Component):
+    """Automatic defrost cycle parameters (holding registers 4-6).
+
+    Confirmed via mbpoll, including a case worth remembering: register 5's
+    factory value read back as 39, not the manual's documented default of
+    -1 -- until write-testing showed it uses the same +40 offset as the
+    RA/OA/EA/SA temperature sensors (39 - 40 = -1). It's the first
+    writable field in this codebase to combine `offset` with
+    `writable=True`; reads were confirmed both ways (raw 39 <-> -1, raw 35
+    <-> -5), but only through this field's own encode/decode, not by
+    inspecting modbus_connection's internals -- if a write here ever
+    lands on the wrong raw value, that symmetry assumption is the first
+    thing to check.
+    """
+
+    interval = integer(4, writable=_clamp(15, 99))
+    """Minutes between defrost checks, 15-99 min."""
+
+    entry_temperature = integer(5, offset=-40, writable=_clamp(-9, 5))
+    """EA temperature that triggers defrost, -9-5 °C."""
+
+    duration = integer(6, writable=_clamp(2, 20))
+    """Minutes the defrost cycle runs for once triggered, 2-20 min."""
+
+
 class DeviceStatus(Component):
     """Sensors, alarms and exhaust fan control -- polled together."""
+
+    auto_restart = boolean(0, writable=True)
+    """Register 0. Powers the unit back on automatically after a power
+    loss, when true. Confirmed via mbpoll: R/W, factory default 1."""
 
     power = boolean(9, writable=True)
     """Register 9. The unit's real on/off switch."""
@@ -151,11 +183,13 @@ class VolcaneDevice:
 
     def __init__(self, unit) -> None:
         self.bypass = BypassSettings(unit)
+        self.defrost = DefrostSettings(unit)
         self.status = DeviceStatus(unit)
         self.supply_fan = SupplyFanSpeed(unit)
         self.commands = Commands(unit)
 
     async def async_update(self) -> None:
-        """Update only the readable sub-systems (bypass and status)."""
+        """Update only the readable sub-systems (bypass, defrost, status)."""
         await self.bypass.async_update()
+        await self.defrost.async_update()
         await self.status.async_update()

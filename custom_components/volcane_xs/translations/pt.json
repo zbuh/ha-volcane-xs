@@ -76,6 +76,9 @@
     "switch": {
       "power": {
         "name": "Ligar/Desligar"
+      },
+      "auto_restart": {
+        "name": "Reinício automático após falha de energia"
       }
     },
     "number": {
@@ -84,6 +87,15 @@
       },
       "bypass_y_range": {
         "name": "Gama do bypass acima do mínimo"
+      },
+      "defrost_interval": {
+        "name": "Intervalo de verificação de descongelação"
+      },
+      "defrost_entry_temperature": {
+        "name": "Temperatura de entrada em descongelação"
+      },
+      "defrost_duration": {
+        "name": "Duração da descongelação"
       }
     },
     "select": {

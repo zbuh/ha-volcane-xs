@@ -76,6 +76,9 @@
     "switch": {
       "power": {
         "name": "Power"
+      },
+      "auto_restart": {
+        "name": "Auto-restart after power loss"
       }
     },
     "number": {
@@ -84,6 +87,15 @@
       },
       "bypass_y_range": {
         "name": "Bypass range above minimum"
+      },
+      "defrost_interval": {
+        "name": "Defrost check interval"
+      },
+      "defrost_entry_temperature": {
+        "name": "Defrost entry temperature"
+      },
+      "defrost_duration": {
+        "name": "Defrost duration"
       }
     },
     "select": {
