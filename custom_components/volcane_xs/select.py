@@ -16,7 +16,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import VolcaneConfigEntry, VolcaneCoordinator
-from .device import FanSpeed
+from .device import FanSpeed, FilterAlarmInterval
 
 OPTIONS: dict[FanSpeed, str] = {
     FanSpeed.OFF: "off",
@@ -25,6 +25,16 @@ OPTIONS: dict[FanSpeed, str] = {
     FanSpeed.SPEED_3: "speed_3",
 }
 OPTION_TO_SPEED = {option: speed for speed, option in OPTIONS.items()}
+
+FILTER_INTERVAL_OPTIONS: dict[FilterAlarmInterval, str] = {
+    FilterAlarmInterval.DAYS_45: "45_days",
+    FilterAlarmInterval.DAYS_60: "60_days",
+    FilterAlarmInterval.DAYS_90: "90_days",
+    FilterAlarmInterval.DAYS_180: "180_days",
+}
+OPTION_TO_FILTER_INTERVAL = {
+    option: interval for interval, option in FILTER_INTERVAL_OPTIONS.items()
+}
 
 
 class VolcaneExhaustSpeed(CoordinatorEntity[VolcaneCoordinator], SelectEntity):
@@ -81,6 +91,32 @@ class VolcaneSupplySpeed(RestoreEntity, SelectEntity):
         self.async_write_ha_state()
 
 
+class VolcaneFilterAlarmInterval(CoordinatorEntity[VolcaneCoordinator], SelectEntity):
+    """Register 25 -- R/W, real bidirectional sync."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "filter_alarm_interval"
+    _attr_options = list(FILTER_INTERVAL_OPTIONS.values())
+
+    def __init__(self, coordinator: VolcaneCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = (
+            f"{coordinator.config_entry.entry_id}_filter_alarm_interval"
+        )
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def current_option(self) -> str | None:
+        interval = self.coordinator.device.status.filter_alarm_interval
+        return None if interval is None else FILTER_INTERVAL_OPTIONS.get(interval)
+
+    async def async_select_option(self, option: str) -> None:
+        await self.coordinator.device.status.write(
+            "filter_alarm_interval", OPTION_TO_FILTER_INTERVAL[option]
+        )
+        await self.coordinator.async_request_refresh()
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: VolcaneConfigEntry,
@@ -91,5 +127,6 @@ async def async_setup_entry(
         [
             VolcaneExhaustSpeed(coordinator),
             VolcaneSupplySpeed(coordinator),
+            VolcaneFilterAlarmInterval(coordinator),
         ]
     )

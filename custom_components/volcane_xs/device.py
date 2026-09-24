@@ -27,6 +27,17 @@ class FanSpeed(IntEnum):
     SPEED_3 = 5
 
 
+class FilterAlarmInterval(IntEnum):
+    """Register 25 -- confirmed by testing: read/write round-trips for all
+    four codes, firmware does not validate the range (a write of 4 was
+    accepted verbatim, not rejected or clamped)."""
+
+    DAYS_45 = 0
+    DAYS_60 = 1
+    DAYS_90 = 2
+    DAYS_180 = 3
+
+
 class BypassAlarm(IntFlag):
     """Bits of register 18 (raw)."""
 
@@ -97,6 +108,10 @@ class DeviceStatus(Component):
     alarms = flags(18, BypassAlarm)
     error_flags = flags(20, ErrorSymbol)
 
+    filter_alarm_interval = enum(25, FilterAlarmInterval, writable=True)
+    """Register 25. R/W, unlike register 24 right next to it -- see
+    Commands below for how the two relate."""
+
     operating_hours = gauge(769, 0.1, unit="h")
 
 
@@ -110,13 +125,22 @@ class SupplyFanSpeed(Component):
 
 
 class Commands(Component):
-    """Register 24 -- command register, write-only, never read.
+    """Register 24 -- command register.
 
     1 -> clears the dirty filter alarm
     2 -> clears the weekly timers
 
-    It is not a configuration parameter, despite an earlier misreading of
-    the manual that suggested it configured the alarm interval in days.
+    Not a configuration parameter -- that's register 25 (see
+    DeviceStatus.filter_alarm_interval), a separate R/W register right
+    next to this one. An earlier reading of the manual conflated the two
+    and wrongly dismissed both as unrelated to the alarm interval; only
+    24 was actually unrelated.
+
+    Kept out of the polled components (like SupplyFanSpeed) even though a
+    direct test showed it does answer reads (returned 0) -- unlike
+    register 10, which never does. Polling it would just show whatever
+    was last written, which resets on its own once the unit processes the
+    command, so there's nothing meaningful to read back.
     """
 
     value = integer(24, writable=True)
