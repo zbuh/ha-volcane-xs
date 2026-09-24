@@ -60,6 +60,9 @@
           "on": "mdi:hvac",
           "off": "mdi:hvac-off"
         }
+      },
+      "auto_restart": {
+        "default": "mdi:power-settings"
       }
     },
     "number": {
@@ -68,6 +71,15 @@
       },
       "bypass_y_range": {
         "default": "mdi:thermometer-high"
+      },
+      "defrost_interval": {
+        "default": "mdi:timer-cog-outline"
+      },
+      "defrost_entry_temperature": {
+        "default": "mdi:snowflake-thermometer"
+      },
+      "defrost_duration": {
+        "default": "mdi:timer-outline"
       }
     },
     "select": {

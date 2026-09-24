@@ -46,10 +46,10 @@ Configure the EW11 (or equivalent gateway) as follows, in its own web UI:
 | Flow Control | `Half Duplex` |
 | Protocol | `Modbus` |
 
-> The baud rate can vary between units/firmware revisions — `4800` is what
-> worked on the reference unit, but `9600` has also been reported to work
-> on other units. If the gateway can't get a response at one rate, try the
-> other before troubleshooting further.
+> The baud rate is set by a physical DIP switch on the unit's board
+> (SW4-4): off = `4800` (default), on = `9600`. If the gateway can't get a
+> response, check that switch before troubleshooting further — cut power
+> to the unit before flipping it.
 
 **Communication Settings** (the `netp` socket)
 
@@ -88,11 +88,15 @@ You will be asked for:
 | `binary_sensor` | Boost active, fire alarm, bypass active, defrost active | |
 | `binary_sensor` | 8 error flags (sensors, EEPROM, filter, fans) | `device_class: problem` |
 | `switch` | Power | The unit's real on/off switch |
+| `switch` | Auto-restart after power loss | |
 | `select` | Exhaust fan speed | Off / Speed 1 / 2 / 3, live readback |
 | `select` | Supply fan speed | Off / Speed 1 / 2 / 3, **write-only** (see below) |
 | `select` | Filter alarm interval | 45 / 60 / 90 / 180 days, live readback |
 | `number` | Bypass minimum temperature | 5-30 °C |
 | `number` | Bypass range above minimum | 2-15 °C |
+| `number` | Defrost check interval | 15-99 min |
+| `number` | Defrost entry temperature | -9-5 °C |
+| `number` | Defrost duration | 2-20 min |
 | `button` | Clear filter alarm, clear weekly timer | |
 
 ## Known limitations
