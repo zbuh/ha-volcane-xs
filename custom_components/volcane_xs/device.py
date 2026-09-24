@@ -115,12 +115,24 @@ class DefrostSettings(Component):
     """Minutes the defrost cycle runs for once triggered, 2-20 min."""
 
 
+class AutoRestartSetting(Component):
+    """Register 0, alone. Was originally folded into DeviceStatus, but
+    that widened its polled read to registers 0-25 (26 registers) in a
+    single request, which the unit doesn't answer -- confirmed it times
+    out every time (10s, no response at all) with register 0 in the mix,
+    and confirmed the 9-25 range alone (without register 0) works, same
+    as it did before this register existed in the integration. Keep this
+    split even if a future register looks like a natural fit for
+    DeviceStatus otherwise -- check the combined read span first.
+    """
+
+    enabled = boolean(0, writable=True)
+    """Powers the unit back on automatically after a power loss, when
+    true. Confirmed via mbpoll: R/W, factory default 1."""
+
+
 class DeviceStatus(Component):
     """Sensors, alarms and exhaust fan control -- polled together."""
-
-    auto_restart = boolean(0, writable=True)
-    """Register 0. Powers the unit back on automatically after a power
-    loss, when true. Confirmed via mbpoll: R/W, factory default 1."""
 
     power = boolean(9, writable=True)
     """Register 9. The unit's real on/off switch."""
@@ -182,6 +194,7 @@ class VolcaneDevice:
     """Groups the unit's sub-systems over the same Modbus unit."""
 
     def __init__(self, unit) -> None:
+        self.auto_restart = AutoRestartSetting(unit)
         self.bypass = BypassSettings(unit)
         self.defrost = DefrostSettings(unit)
         self.status = DeviceStatus(unit)
@@ -189,7 +202,9 @@ class VolcaneDevice:
         self.commands = Commands(unit)
 
     async def async_update(self) -> None:
-        """Update only the readable sub-systems (bypass, defrost, status)."""
+        """Update only the readable sub-systems (auto_restart, bypass,
+        defrost, status)."""
+        await self.auto_restart.async_update()
         await self.bypass.async_update()
         await self.defrost.async_update()
         await self.status.async_update()
