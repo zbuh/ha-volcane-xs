@@ -141,8 +141,13 @@ class DeviceStatus(Component):
     power = boolean(9, writable=True)
     """Register 9. The unit's real on/off switch."""
 
+    supply_speed = enum(10, FanSpeed, writable=True)
+    """Register 10. Long believed write-only (early testing never got an
+    answer), but confirmed readable on 2026-11-19: answers both alone and
+    inside this component's 9-25 read, and tracks writes (2 -> 3 -> 2)."""
+
     exhaust_speed = enum(11, FanSpeed, writable=True)
-    """Register 11 -- answers reads, unlike register 10 (supply fan)."""
+    """Register 11."""
 
     return_air_temperature = integer(12, offset=-40, unit="°C")
     outdoor_air_temperature = integer(13, offset=-40, unit="°C")
@@ -189,17 +194,6 @@ class DeviceStatus(Component):
         return None if hours is None or limit is None else max(limit - hours, 0) / 24
 
 
-class SupplyFanSpeed(Component):
-    """Register 10 -- treated as write-only. Early testing never got an
-    answer to a read, but a later single-register mbpoll read did return
-    the current code (2), so readability may depend on the gateway or
-    timing. Until that is understood, this component is kept out of the
-    coordinator's async_update() loop.
-    """
-
-    speed = integer(10, writable=True)
-
-
 class Commands(Component):
     """Register 24 -- command register.
 
@@ -212,9 +206,8 @@ class Commands(Component):
     and wrongly dismissed both as unrelated to the alarm interval; only
     24 was actually unrelated.
 
-    Kept out of the polled components (like SupplyFanSpeed) even though a
-    direct test showed it does answer reads (returned 0) -- unlike
-    register 10, which never does. Polling it would just show whatever
+    Kept out of the polled components even though a direct test showed it
+    does answer reads (returned 0). Polling it would just show whatever
     was last written, which resets on its own once the unit processes the
     command, so there's nothing meaningful to read back.
     """
@@ -230,12 +223,10 @@ class VolcaneDevice:
         self.bypass = BypassSettings(unit)
         self.defrost = DefrostSettings(unit)
         self.status = DeviceStatus(unit)
-        self.supply_fan = SupplyFanSpeed(unit)
         self.commands = Commands(unit)
 
     async def async_update(self) -> None:
-        """Update only the readable sub-systems (auto_restart, bypass,
-        defrost, status)."""
+        """Update the polled sub-systems (everything except commands)."""
         await self.auto_restart.async_update()
         await self.bypass.async_update()
         await self.defrost.async_update()

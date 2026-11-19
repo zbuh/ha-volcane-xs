@@ -91,7 +91,7 @@ You will be asked for:
 | `switch` | Power | The unit's real on/off switch |
 | `switch` | Auto-restart after power loss | |
 | `select` | Exhaust fan speed | Off / Speed 1 / 2 / 3, live readback |
-| `select` | Supply fan speed | Off / Speed 1 / 2 / 3, **write-only** (see below) |
+| `select` | Supply fan speed | Off / Speed 1 / 2 / 3, live readback |
 | `select` | Filter alarm interval | 45 / 60 / 90 / 180 days, live readback |
 | `number` | Bypass minimum temperature | 5-30 °C |
 | `number` | Bypass range above minimum | 2-15 °C |
@@ -102,12 +102,6 @@ You will be asked for:
 
 ## Known limitations
 
-- **Supply fan speed has no readback.** The unit's supply-fan register never
-  answers a Modbus read on this hardware revision — confirmed by testing.
-  If the speed changes another way (physical panel, power loss), the
-  `select` entity has no way to detect it and may show a stale value until
-  you change it again. It does restore its last commanded value across a
-  Home Assistant restart.
 - The weekly-timer button writes a command code to a command register;
   there is no confirmation that the operation succeeded beyond the Modbus
   write not raising an error. (The clear-filter-alarm button does have

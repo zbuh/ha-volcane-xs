@@ -64,8 +64,8 @@ pull register info from that other section.
 | 5 | R/W | Defrost entry temperature | −9–5 °C, default −1. Confirmed via `mbpoll` — and it uses the **same +40 offset** as the temperature sensors below (factory-read raw `39` = actual `−1`; this wasn't obvious at first, the raw value looked like unrelated garbage until write-testing a positive number worked but a negative one round-tripped wrong) |
 | 6 | R/W | Defrost duration | 2–20 min, default 10. Confirmed via `mbpoll` |
 | 9 | R/W | Power on/off | 0/1. The unit's real power switch |
-| 10 | **write-only** (treated as) | Supply fan speed | Never answered a read in early testing — but a single-register `mbpoll` read on 2026-11-19 did return the current code (`2`). Unclear whether it depends on gateway/timing; still kept unpolled. Codes below |
-| 11 | R/W | Exhaust fan speed | Answers reads, unlike register 10 — codes below |
+| 10 | R/W | Supply fan speed | Long believed write-only (early testing never got an answer to a read — cause unknown, possibly the gateway or timing back then). Confirmed readable on 2026-11-19: answers alone and inside the 9–25 block `DeviceStatus` polls, and tracks writes (`2` → `3` → `2` when set from HA). Not yet tested: whether a change made **on the panel** shows up too. Codes below |
+| 11 | R/W | Exhaust fan speed | Codes below |
 | 12 | R | Return air temperature | raw = temp + 40 (offset −40 to correct) |
 | 13 | R | Outdoor air temperature | same offset |
 | 14 | R | Exhaust air temperature | same offset |
@@ -74,7 +74,7 @@ pull register info from that other section.
 | 18 | R | Alarm bits (raw) | bit0 fire, bit1 bypass on, bit2 bypass off (unused — bit1's absence already means "not active"), bit3 defrost |
 | 20 | R | Error symbol bits (raw) | see table below |
 | 23 | R (config) | Speed mode | Must be `1` for 3-speed mode — confirmed on this unit. `0`=2-speed, `2`=10-speed (DC) are the same field on other variants. Not exposed as an entity |
-| 24 | R/W (unpolled) | Command register | `1` clears the dirty-filter alarm (confirmed 2026-11-19: panel icon cleared instantly, register 769 dropped to ~0), `2` clears the weekly timers. **Not** a configuration parameter — that's register 25, right next to it. A direct `mbpoll` read returned `0`, so it's not actually unreadable like register 10; it's just excluded from polling because there's nothing meaningful to read back (see `Commands` in `device.py`) |
+| 24 | R/W (unpolled) | Command register | `1` clears the dirty-filter alarm (confirmed 2026-11-19: panel icon cleared instantly, register 769 dropped to ~0), `2` clears the weekly timers. **Not** a configuration parameter — that's register 25, right next to it. A direct `mbpoll` read returned `0`, but it's excluded from polling because there's nothing meaningful to read back (see `Commands` in `device.py`) |
 | 25 | R/W | Filter alarm interval | `0`=45 days, `1`=60 days, `2`=90 days, `3`=180 days. Confirmed via `mbpoll`: write/read-back round-trips for all four codes. Firmware does not validate the range — writing `4` was accepted verbatim, not rejected or clamped, so range validation is left to the integration |
 | 769 | R | Hours since filter reset | uint16, scale 0.1, unit h. **Not** lifetime operating hours, as first assumed. Confirmed 2026-11-19 with the panel's dirty-filter alarm live: read `11317` (1131.7 h ≈ 47.2 days, past the 45-day interval), dropped to `2` right after writing `1` to register 24, then went up by 1 every ~6 min. The unit has **no filter-alarm flag bit**: the panel alarm is just `reg769 × 0.1 ≥ days(reg25) × 24`, and that is how the integration derives `filter_alarm` |
 
@@ -157,19 +157,17 @@ Key API points relevant to this integration:
   name. Fields must be declared `writable=True` or `writable=<validator>`
   (a callable that raises `ValueError` to reject a value, otherwise returns
   the value to write).
-- **Write-only registers** (register 10, the only one observed to never
-  answer a read) have no equivalent to "exclude from reads but keep
-  writable" inside one `Component` — `restrict_fields()` excludes a field
-  from *both* reads and writes. The approach used here: put it in its
-  **own `Component` subclass that is never passed to a coordinator's
-  `async_update()` loop** — only `write()` is ever called on it, on
-  demand, from an entity. This is a documented-by-inference pattern, not
-  an explicit example in the library's docs; if writes on an unread
-  component ever misbehave, that assumption is the first thing to
-  revisit. Register 24 (`Commands`) uses the same unpolled pattern even
-  though it does answer reads (confirmed by testing, returns `0`) — it's
-  excluded because it's a momentary command trigger with nothing
-  meaningful to poll, not because the read fails.
+- **Registers that must be written but not polled** have no equivalent
+  to "exclude from reads but keep writable" inside one `Component` —
+  `restrict_fields()` excludes a field from *both* reads and writes. The
+  approach used here: put it in its **own `Component` subclass that is
+  never passed to a coordinator's `async_update()` loop** — only
+  `write()` is ever called on it, on demand, from an entity. This is a
+  documented-by-inference pattern, not an explicit example in the
+  library's docs. Only register 24 (`Commands`) uses it now: it does
+  answer reads (returns `0`), but it's a momentary command trigger with
+  nothing meaningful to poll. (Register 10 used this pattern too, as
+  `SupplyFanSpeed`, while it was believed write-only — until v0.4.1.)
 - `enum(address, EnumClass, writable=...)` decodes to an `IntEnum` member
   (unknown codes → `None`, warned once). `flags(address, FlagClass)`
   decodes to an `IntFlag` (unknown bits kept). Both are built on
@@ -192,11 +190,11 @@ Key API points relevant to this integration:
 ## Integration architecture
 
 - `device.py` — the register map (`AutoRestartSetting`, `BypassSettings`,
-  `DefrostSettings`, `DeviceStatus`, `SupplyFanSpeed`, `Commands`
-  components) and the `VolcaneDevice` wrapper that groups them.
+  `DefrostSettings`, `DeviceStatus`, `Commands` components) and the
+  `VolcaneDevice` wrapper that groups them.
   `VolcaneDevice.async_update()` updates the four readable components
-  (`auto_restart`, `bypass`, `defrost`, `status`); `supply_fan` and
-  `commands` are intentionally never polled (see write-only note above).
+  (`auto_restart`, `bypass`, `defrost`, `status`); `commands` is
+  intentionally never polled (see the note above).
   `AutoRestartSetting` (register 0) is split out on its own rather than
   folded into `DeviceStatus`: `Component.async_update()` pools a
   component's fields into as few reads as possible, and merging register
@@ -215,13 +213,11 @@ Key API points relevant to this integration:
   dataclass + `value_fn` lambda pattern, matching the modern
   `has_entity_name` + `translation_key` convention (no hardcoded display
   strings in code — see `strings.json` / `translations/`).
-- `select.py`'s two entities are asymmetric: `VolcaneExhaustSpeed` is a
-  normal `CoordinatorEntity` (register 11, real readback).
-  `VolcaneSupplySpeed` is a bare `RestoreEntity` (register 10, no
-  coordinator, no readback) — it remembers the last value **it** wrote
-  across restarts, but has no way to detect an out-of-band change (physical
-  panel, power loss). A brand new instance of this entity always starts at
-  `unknown` until set once, by design — there's nothing to restore yet.
+- `select.py`'s two fan speed entities share one class, `VolcaneFanSpeed`,
+  a normal `CoordinatorEntity` parameterised by the `DeviceStatus` field
+  (`supply_speed` = register 10, `exhaust_speed` = register 11), both with
+  real readback. Until v0.4.1 the supply one was a `RestoreEntity` with no
+  readback, because register 10 was believed write-only.
 
 ## Known quirks / gotchas
 

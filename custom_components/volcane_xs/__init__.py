@@ -32,8 +32,8 @@ SCAN_INTERVAL = timedelta(seconds=30)
 
 
 class VolcaneCoordinator(DataUpdateCoordinator[None]):
-    """Polls bypass + status every 30s. Supply fan speed and commands are
-    never read (write-only registers) -- see device.py."""
+    """Polls auto-restart, bypass, defrost and status every 30s. The
+    command register is never read -- see device.py."""
 
     def __init__(self, hass: HomeAssistant, entry: "VolcaneConfigEntry", device: VolcaneDevice) -> None:
         super().__init__(

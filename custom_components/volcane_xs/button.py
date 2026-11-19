@@ -1,4 +1,4 @@
-"""Command buttons (register 24, write-only)."""
+"""Command buttons (register 24, unpolled command register)."""
 
 from __future__ import annotations
 
