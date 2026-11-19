@@ -84,9 +84,10 @@ You will be asked for:
 | Platform | Entity | Notes |
 |---|---|---|
 | `sensor` | Return / outdoor / exhaust / supply air temperature | °C |
-| `sensor` | Operating hours | |
+| `sensor` | Hours since filter reset, days until filter change | The unit's filter counter; resets when the filter alarm is cleared |
 | `binary_sensor` | Boost active, fire alarm, bypass active, defrost active | |
-| `binary_sensor` | 8 error flags (sensors, EEPROM, filter, fans) | `device_class: problem` |
+| `binary_sensor` | 7 error flags (sensors, EEPROM, fans) | `device_class: problem` |
+| `binary_sensor` | Filter alarm | Mirrors the panel's dirty-filter icon: on once the filter counter reaches the configured interval |
 | `switch` | Power | The unit's real on/off switch |
 | `switch` | Auto-restart after power loss | |
 | `select` | Exhaust fan speed | Off / Speed 1 / 2 / 3, live readback |
@@ -107,9 +108,10 @@ You will be asked for:
   `select` entity has no way to detect it and may show a stale value until
   you change it again. It does restore its last commanded value across a
   Home Assistant restart.
-- The dirty-filter and weekly-timer buttons write a command code to a
-  write-only register; there is no confirmation that the operation
-  succeeded beyond the Modbus write not raising an error.
+- The weekly-timer button writes a command code to a command register;
+  there is no confirmation that the operation succeeded beyond the Modbus
+  write not raising an error. (The clear-filter-alarm button does have
+  visible feedback: the filter counter drops back to ~0 on the next poll.)
 - Only the temperature, ventilation and bypass sub-systems are covered.
   CO2, humidity and electric-heater registers exist on some hardware
   variants but are not implemented, since the reference unit doesn't have

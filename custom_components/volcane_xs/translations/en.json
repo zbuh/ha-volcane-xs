@@ -31,8 +31,11 @@
       "supply_air_temperature": {
         "name": "Supply air temperature"
       },
-      "operating_hours": {
-        "name": "Operating hours"
+      "filter_hours": {
+        "name": "Hours since filter reset"
+      },
+      "filter_days_remaining": {
+        "name": "Days until filter change"
       }
     },
     "binary_sensor": {

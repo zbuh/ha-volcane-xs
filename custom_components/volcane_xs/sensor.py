@@ -1,4 +1,4 @@
-"""Temperature and operating-hours sensors."""
+"""Temperature and filter-counter sensors."""
 
 from __future__ import annotations
 
@@ -59,11 +59,22 @@ DESCRIPTIONS: tuple[VolcaneSensorDescription, ...] = (
         value_fn=lambda status: status.supply_air_temperature,
     ),
     VolcaneSensorDescription(
-        key="operating_hours",
-        translation_key="operating_hours",
+        key="filter_hours",
+        translation_key="filter_hours",
+        device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfTime.HOURS,
-        value_fn=lambda status: status.operating_hours,
+        suggested_display_precision=1,
+        value_fn=lambda status: status.filter_hours,
+    ),
+    VolcaneSensorDescription(
+        key="filter_days_remaining",
+        translation_key="filter_days_remaining",
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTime.DAYS,
+        suggested_display_precision=1,
+        value_fn=lambda status: status.filter_days_remaining,
     ),
 )
 

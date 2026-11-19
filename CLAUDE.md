@@ -64,7 +64,7 @@ pull register info from that other section.
 | 5 | R/W | Defrost entry temperature | −9–5 °C, default −1. Confirmed via `mbpoll` — and it uses the **same +40 offset** as the temperature sensors below (factory-read raw `39` = actual `−1`; this wasn't obvious at first, the raw value looked like unrelated garbage until write-testing a positive number worked but a negative one round-tripped wrong) |
 | 6 | R/W | Defrost duration | 2–20 min, default 10. Confirmed via `mbpoll` |
 | 9 | R/W | Power on/off | 0/1. The unit's real power switch |
-| 10 | **write-only** | Supply fan speed | Never answers a read (confirmed) — codes below |
+| 10 | **write-only** (treated as) | Supply fan speed | Never answered a read in early testing — but a single-register `mbpoll` read on 2026-11-19 did return the current code (`2`). Unclear whether it depends on gateway/timing; still kept unpolled. Codes below |
 | 11 | R/W | Exhaust fan speed | Answers reads, unlike register 10 — codes below |
 | 12 | R | Return air temperature | raw = temp + 40 (offset −40 to correct) |
 | 13 | R | Outdoor air temperature | same offset |
@@ -74,9 +74,9 @@ pull register info from that other section.
 | 18 | R | Alarm bits (raw) | bit0 fire, bit1 bypass on, bit2 bypass off (unused — bit1's absence already means "not active"), bit3 defrost |
 | 20 | R | Error symbol bits (raw) | see table below |
 | 23 | R (config) | Speed mode | Must be `1` for 3-speed mode — confirmed on this unit. `0`=2-speed, `2`=10-speed (DC) are the same field on other variants. Not exposed as an entity |
-| 24 | R/W (unpolled) | Command register | `1` clears the dirty-filter alarm, `2` clears the weekly timers. **Not** a configuration parameter — that's register 25, right next to it. A direct `mbpoll` read returned `0`, so it's not actually unreadable like register 10; it's just excluded from polling because there's nothing meaningful to read back (see `Commands` in `device.py`) |
+| 24 | R/W (unpolled) | Command register | `1` clears the dirty-filter alarm (confirmed 2026-11-19: panel icon cleared instantly, register 769 dropped to ~0), `2` clears the weekly timers. **Not** a configuration parameter — that's register 25, right next to it. A direct `mbpoll` read returned `0`, so it's not actually unreadable like register 10; it's just excluded from polling because there's nothing meaningful to read back (see `Commands` in `device.py`) |
 | 25 | R/W | Filter alarm interval | `0`=45 days, `1`=60 days, `2`=90 days, `3`=180 days. Confirmed via `mbpoll`: write/read-back round-trips for all four codes. Firmware does not validate the range — writing `4` was accepted verbatim, not rejected or clamped, so range validation is left to the integration |
-| 769 | R | Operating hours | uint16, scale 0.1, unit h |
+| 769 | R | Hours since filter reset | uint16, scale 0.1, unit h. **Not** lifetime operating hours, as first assumed. Confirmed 2026-11-19 with the panel's dirty-filter alarm live: read `11317` (1131.7 h ≈ 47.2 days, past the 45-day interval), dropped to `2` right after writing `1` to register 24, then went up by 1 every ~6 min. The unit has **no filter-alarm flag bit**: the panel alarm is just `reg769 × 0.1 ≥ days(reg25) × 24`, and that is how the integration derives `filter_alarm` |
 
 Registers that exist per the official manual but are **intentionally not
 implemented** (not tested on this unit, since the hardware they configure
@@ -106,7 +106,7 @@ Error symbol bits (register 20):
 | 1 | EEPROM error |
 | 2 | Return air (RA) sensor error |
 | 3 | Exhaust air (EA) sensor error |
-| 4 | **Likely doesn't exist.** Previously mapped to "filter alarm" on a guess from another model's documentation, since the translated manual's bit table skipped from bit 3 to bit 5 with no explanation. The official manual's own table (see above) also has no bit 4 entry — it jumps B3→B5 the same way — and its bits cross-reference cleanly 1:1 against the front-panel E1-E8 error codes with no gap needed for a filter alarm. `ErrorSymbol.FILTER` (`device.py`) and the `filter_alarm` binary_sensor built on it are still shipped as of v0.2.0 but are now believed wrong; there's no way to force-trigger this bit for a real test, so this can't be fully confirmed short of it firing on its own one day |
+| 4 | **Not a filter alarm (confirmed).** Was mapped to "filter alarm" on a guess (the manuals skip B3→B5). With the panel's dirty-filter alarm live, register 20 read `0`, so the bit was removed from `ErrorSymbol`. The filter alarm is derived from register 769 instead (see above) |
 | 5 | Supply air (SA) sensor error |
 | 6 | Supply fan error |
 | 7 | Exhaust fan error |
@@ -157,7 +157,7 @@ Key API points relevant to this integration:
   name. Fields must be declared `writable=True` or `writable=<validator>`
   (a callable that raises `ValueError` to reject a value, otherwise returns
   the value to write).
-- **Write-only registers** (register 10, the only one confirmed to never
+- **Write-only registers** (register 10, the only one observed to never
   answer a read) have no equivalent to "exclude from reads but keep
   writable" inside one `Component` — `restrict_fields()` excludes a field
   from *both* reads and writes. The approach used here: put it in its
@@ -225,6 +225,17 @@ Key API points relevant to this integration:
 
 ## Known quirks / gotchas
 
+- **Undocumented addresses answer reads, but don't trust them.** Every
+  address 0–1040 answers FC03. Outside the documented map, much of it
+  looks like the controller's live RAM: 256–270 mirrors config/state
+  (258/259 = bypass X/Y, 260–263 look like raw probe ADC values, 270
+  mirrors register 769), and 540–770 is a buffer that changes completely
+  between reads. Multi-register block reads in these areas are also
+  inconsistent with single reads (e.g. 768/769 read as `3`/`7` inside a
+  10-register block vs `0`/`11317` alone). To find an unknown flag,
+  dump every address **one register at a time** before and after the
+  event, plus a second "after" dump to rule out values that drift on
+  their own — that's how register 769's real meaning was found.
 - **Double-writer risk when migrating from a classic YAML `modbus:`
   config.** If a device was previously set up via the YAML Modbus platform
   (hub + `input_number`/`input_select` + scripts driving the same

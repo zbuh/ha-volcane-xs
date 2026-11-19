@@ -31,8 +31,11 @@
       "supply_air_temperature": {
         "name": "Temperatura do ar abastecido"
       },
-      "operating_hours": {
-        "name": "Horas de funcionamento"
+      "filter_hours": {
+        "name": "Horas desde a limpeza do filtro"
+      },
+      "filter_days_remaining": {
+        "name": "Dias até à troca do filtro"
       }
     },
     "binary_sensor": {

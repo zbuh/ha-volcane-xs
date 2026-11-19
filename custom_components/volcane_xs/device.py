@@ -38,6 +38,14 @@ class FilterAlarmInterval(IntEnum):
     DAYS_180 = 3
 
 
+FILTER_INTERVAL_DAYS: dict[FilterAlarmInterval, int] = {
+    FilterAlarmInterval.DAYS_45: 45,
+    FilterAlarmInterval.DAYS_60: 60,
+    FilterAlarmInterval.DAYS_90: 90,
+    FilterAlarmInterval.DAYS_180: 180,
+}
+
+
 class BypassAlarm(IntFlag):
     """Bits of register 18 (raw)."""
 
@@ -49,19 +57,15 @@ class BypassAlarm(IntFlag):
 class ErrorSymbol(IntFlag):
     """Bits of register 20 (raw).
 
-    FILTER (bit 4) is likely wrong: an official manual surfaced later and
-    its own bit table also has no bit 4 entry (jumps B3->B5, same gap),
-    cross-referencing cleanly against the front-panel E1-E8 error codes
-    with no bit to spare for a filter alarm. Kept for now since there's no
-    way to force-trigger it for a real test -- see the register 20 note
-    in CLAUDE.md.
+    There is no bit 4: it used to be mapped to a "filter alarm" on a guess,
+    but with the panel's dirty-filter alarm live, register 20 read 0. The
+    filter alarm has no flag bit at all -- see DeviceStatus.filter_hours.
     """
 
     OUTDOOR_SENSOR = 1
     EEPROM = 2
     RETURN_SENSOR = 4
     EXHAUST_SENSOR = 8
-    FILTER = 16
     SUPPLY_SENSOR = 32
     SUPPLY_FAN = 64
     EXHAUST_FAN = 128
@@ -156,13 +160,41 @@ class DeviceStatus(Component):
     """Register 25. R/W, unlike register 24 right next to it -- see
     Commands below for how the two relate."""
 
-    operating_hours = gauge(769, 0.1, unit="h")
+    filter_hours = gauge(769, 0.1, unit="h")
+    """Register 769. Run time since the last filter-alarm reset, in 0.1 h
+    steps -- *not* lifetime operating hours, as first assumed. Confirmed
+    with the panel's dirty-filter alarm live: it read 11317 (1131.7 h,
+    ~47.2 days, past the 45-day interval) and dropped to 2 right after
+    writing 1 to register 24, then kept ticking by 1 every ~6 minutes.
+
+    The unit has no separate alarm flag: the panel alarm is simply this
+    counter reaching the interval in register 25 (see filter_due)."""
+
+    @property
+    def filter_interval_hours(self) -> int | None:
+        """Configured filter interval (register 25), in hours."""
+        interval = self.filter_alarm_interval
+        return None if interval is None else FILTER_INTERVAL_DAYS[interval] * 24
+
+    @property
+    def filter_due(self) -> bool | None:
+        """True when the panel shows the dirty-filter alarm."""
+        hours, limit = self.filter_hours, self.filter_interval_hours
+        return None if hours is None or limit is None else hours >= limit
+
+    @property
+    def filter_days_remaining(self) -> float | None:
+        """Days until the dirty-filter alarm, 0 once it is due."""
+        hours, limit = self.filter_hours, self.filter_interval_hours
+        return None if hours is None or limit is None else max(limit - hours, 0) / 24
 
 
 class SupplyFanSpeed(Component):
-    """Register 10 -- write-only, never answers reads (confirmed by
-    testing). This component must never be passed to a coordinator/
-    async_update(): a periodic poll would always fail on this register.
+    """Register 10 -- treated as write-only. Early testing never got an
+    answer to a read, but a later single-register mbpoll read did return
+    the current code (2), so readability may depend on the gateway or
+    timing. Until that is understood, this component is kept out of the
+    coordinator's async_update() loop.
     """
 
     speed = integer(10, writable=True)

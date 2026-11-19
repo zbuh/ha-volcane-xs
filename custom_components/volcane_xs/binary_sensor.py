@@ -1,4 +1,5 @@
-"""Binary sensors decoded from the bit registers (18 and 20), plus boost."""
+"""Binary sensors decoded from the bit registers (18 and 20), plus boost
+and the filter alarm (derived from registers 769 and 25)."""
 
 from __future__ import annotations
 
@@ -81,7 +82,7 @@ DESCRIPTIONS: tuple[VolcaneBinarySensorDescription, ...] = (
         key="filter_alarm",
         translation_key="filter_alarm",
         device_class=BinarySensorDeviceClass.PROBLEM,
-        value_fn=_flag_fn("error_flags", ErrorSymbol.FILTER),
+        value_fn=lambda status: status.filter_due,
     ),
     VolcaneBinarySensorDescription(
         key="supply_sensor_error",

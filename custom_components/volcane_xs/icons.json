@@ -1,8 +1,11 @@
 {
   "entity": {
     "sensor": {
-      "operating_hours": {
-        "default": "mdi:clock-outline"
+      "filter_hours": {
+        "default": "mdi:air-filter"
+      },
+      "filter_days_remaining": {
+        "default": "mdi:calendar-clock"
       }
     },
     "binary_sensor": {
